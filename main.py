@@ -1,147 +1,147 @@
 from os import system
 from time import sleep
 
-def lade_levels(datei):
-    with open(datei, "r", encoding="utf-8") as f:
-        inhalt = f.read().strip()
+def load_levels(file):
+    with open(file, "r", encoding="utf-8") as f:
+        content = f.read().strip()
 
-    roh_levels = inhalt.split("\n\n")
+    raw_levels = content.split("\n\n")
     levels = []
-    for block in roh_levels:
-        level = [list(zeile) for zeile in block.splitlines()]
+    for block in raw_levels:
+        level = [list(line) for line in block.splitlines()]
         levels.append(level)
     return levels
 
-levels = lade_levels("levels.txt")
+levels = load_levels("levels.txt")
 
-aktuelle_level = 0
-urspruengliches_level = [[list(reihe) for reihe in level] for level in levels]
-spielfeld = [list(reihe) for reihe in urspruengliches_level[aktuelle_level]]
+current_level = 0
+original_levels = [[list(row) for row in level] for level in levels]
+field = [list(row) for row in original_levels[current_level]]
 
-hoehe = len(spielfeld)
-breite = len(spielfeld[0])
+height = len(field)
+width = len(field[0])
 
-def setze_spieler(x, y):
-    spielfeld[y][x] = '@'
+def place_player(x, y):
+    field[y][x] = '@'
 
-def finde_spieler():
-    for y in range(hoehe):
-        for x in range(breite):
-            if spielfeld[y][x] == '@':
+def find_player():
+    for y in range(height):
+        for x in range(width):
+            if field[y][x] == '@':
                 return x, y
     return None
 
-def zeige_spielfeld():
+def show_field():
     system('cls' if system.__name__ == 'posix' else 'clear')
-    print(f"Level {aktuelle_level + 1} / {len(levels)}")
-    print("Steuerung: w/a/s/d = bewegen, r = reset, q = beenden;\n'.' = Air, '#' = Wall, '+' = Box, '~' = Lava, 'S' = Slime Block, '%' = One-Time-Block\n")
-    for zeile in spielfeld:
-        print(''.join(zeile))
+    print(f"Level {current_level + 1} / {len(levels)}")
+    print("Controls: w/a/s/d = move, r = reset, q = quit;\n'.' = Air, '#' = Wall, '+' = Box, '~' = Lava, 'S' = Slime Block, '%' = One-Time-Block\n")
+    for line in field:
+        print(''.join(line))
 
-def schiebe_plus(x, y, dx, dy):
+def push_box(x, y, dx, dy):
     cx, cy = x, y
-    if urspruengliches_level[aktuelle_level][cy][cx] == 'S':
-        spielfeld[cy][cx] = 'S'
+    if original_levels[current_level][cy][cx] == 'S':
+        field[cy][cx] = 'S'
     else:
-        spielfeld[cy][cx] = '.'
+        field[cy][cx] = '.'
 
     while True:
         nx = cx + dx
         ny = cy + dy
 
-        if ny < 0 or ny >= hoehe or nx < 0 or nx >= breite:
+        if ny < 0 or ny >= height or nx < 0 or nx >= width:
             break
 
-        ziel = spielfeld[ny][nx]
+        target = field[ny][nx]
 
-        if ziel in ['#', '+']:
+        if target in ['#', '+']:
             break
-        if ziel == '~':
-            spielfeld[ny][nx] = '.'
+        if target == '~':
+            field[ny][nx] = '.'
             return nx, ny
-        if ziel == 'X':
+        if target == 'X':
             break
-        if ziel == '.':
+        if target == '.':
             cx, cy = nx, ny
             continue
-        if ziel == 'S':
+        if target == 'S':
             cx, cy = nx, ny
             break
-        if ziel == '%':
-            urspruengliches_level[aktuelle_level][ny][nx] = '.'
-            spielfeld[ny][nx] = '.'
+        if target == '%':
+            original_levels[current_level][ny][nx] = '.'
+            field[ny][nx] = '.'
             break
 
-    spielfeld[cy][cx] = '+'
+    field[cy][cx] = '+'
     return cx, cy
 
-def lade_level(level_nummer):
-    global spielfeld, hoehe, breite, aktuelle_level
-    aktuelle_level = level_nummer
-    spielfeld = [list(reihe) for reihe in urspruengliches_level[aktuelle_level]]
-    hoehe = len(spielfeld)
-    breite = len(spielfeld[0])
+def load_level(level_number):
+    global field, height, width, current_level
+    current_level = level_number
+    field = [list(row) for row in original_levels[current_level]]
+    height = len(field)
+    width = len(field[0])
 
-def bewege(dx, dy):
-    global aktuelle_level, spielfeld, hoehe, breite
-    x, y = finde_spieler()
+def move(dx, dy):
+    global current_level, field, height, width
+    x, y = find_player()
 
-    if urspruengliches_level[aktuelle_level][y][x] == 'S':
-        spielfeld[y][x] = 'S'
+    if original_levels[current_level][y][x] == 'S':
+        field[y][x] = 'S'
     else:
-        spielfeld[y][x] = '.'
+        field[y][x] = '.'
 
     while True:
         nx = x + dx
         ny = y + dy
 
-        if ny < 0 or ny >= hoehe or nx < 0 or nx >= breite:
+        if ny < 0 or ny >= height or nx < 0 or nx >= width:
             break
         
-        ziel = spielfeld[ny][nx]
+        target = field[ny][nx]
 
-        if ziel == '#':
+        if target == '#':
             break
 
-        if ziel == '%':
-            urspruengliches_level[aktuelle_level][ny][nx] = '.'
-            spielfeld[ny][nx] = '.'
+        if target == '%':
+            original_levels[current_level][ny][nx] = '.'
+            field[ny][nx] = '.'
             break
 
-        if ziel == '~':
-            lade_level(aktuelle_level)
-            print("Du bist in die Lava gefallen! Level wird zurückgesetzt...")
+        if target == '~':
+            load_level(current_level)
+            print("You fell into the lava! Resetting level...")
             sleep(1)
             return
 
-        if ziel == '+':
-            schiebe_plus(nx, ny, dx, dy)
-            setze_spieler(x, y)
+        if target == '+':
+            push_box(nx, ny, dx, dy)
+            place_player(x, y)
             return
 
-        if ziel == 'X':
-            setze_spieler(nx, ny)
-            zeige_spielfeld()
-            print("Level geschafft! Lade nächstes Level...")
+        if target == 'X':
+            place_player(nx, ny)
+            show_field()
+            print("Level completed! Loading next level...")
             sleep(1)
 
-            aktuelle_level += 1
-            if aktuelle_level >= len(levels):
-                print("Herzlichen Glückwunsch! Du hast alle Levels geschafft!")
+            current_level += 1
+            if current_level >= len(levels):
+                print("Congratulations! You finished all levels!")
                 exit(0)
 
-            lade_level(aktuelle_level)
+            load_level(current_level)
             return
 
-        if ziel == 'S':
-            setze_spieler(nx, ny)
+        if target == 'S':
+            place_player(nx, ny)
             return
 
         x, y = nx, ny
 
-    setze_spieler(x, y)
+    place_player(x, y)
 
-richtung_map = {
+direction_map = {
     'w': (0, -1),
     's': (0, 1),
     'a': (-1, 0),
@@ -149,19 +149,19 @@ richtung_map = {
 }
 
 while True:
-    zeige_spielfeld()
-    eingabe = input(": ").lower()
+    show_field()
+    user_input = input(": ").lower()
 
-    if eingabe == 'q':
-        print("Spiel beendet.")
+    if user_input == 'q':
+        print("Game ended.")
         break
-    elif eingabe == 'r':
-        lade_level(aktuelle_level)
-        print("Level wurde zurückgesetzt.")
+    elif user_input == 'r':
+        load_level(current_level)
+        print("Level has been reset.")
         sleep(1)
-    elif eingabe in richtung_map:
-        dx, dy = richtung_map[eingabe]
-        bewege(dx, dy)
+    elif user_input in direction_map:
+        dx, dy = direction_map[user_input]
+        move(dx, dy)
     else:
-        print("Ungültige Eingabe.")
+        print("Invalid input.")
         sleep(1)
