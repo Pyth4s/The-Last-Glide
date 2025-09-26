@@ -177,6 +177,15 @@ levels = [
         list("#..SS.....#"),
         list("###########")
     ],
+    [
+        list("###########"),
+        list("#.........#"),
+        list("#.........#"),
+        list("#.........#"),
+        list("#.........#"),
+        list("#.........#"),
+        list("###########")
+    ],
 ]
 
 aktuelle_level = 0
@@ -199,23 +208,16 @@ def finde_spieler():
 def zeige_spielfeld():
     system('cls' if system.__name__ == 'posix' else 'clear')
     print(f"Level {aktuelle_level + 1} / {len(levels)}")
-    print("Steuerung: w/a/s/d = bewegen, r = reset, q = beenden\n")
+    print("Steuerung: w/a/s/d = bewegen, r = reset, q = beenden;\n'.' = Air, '#' = Wall, '+' = Box, '~' = Lava, 'S' = Slime Block, '%' = One-Time-Block\n")
     for zeile in spielfeld:
         print(''.join(zeile))
 
-def kann_schieben(x, y, dx, dy):
-    nx = x + dx
-    ny = y + dy
-    if 0 <= nx < breite and 0 <= ny < hoehe:
-        ziel = spielfeld[ny][nx]
-        if ziel == '#' or ziel == '+':
-            return False
-        return True
-    return False
-
 def schiebe_plus(x, y, dx, dy):
     cx, cy = x, y
-    spielfeld[cy][cx] = '.'  
+    if urspruengliches_level[aktuelle_level][cy][cx] == 'S':
+        spielfeld[cy][cx] = 'S'
+    else:
+        spielfeld[cy][cx] = '.'
 
     while True:
         nx = cx + dx
@@ -226,9 +228,7 @@ def schiebe_plus(x, y, dx, dy):
 
         ziel = spielfeld[ny][nx]
 
-        if ziel == '#':
-            break
-        if ziel == '+':
+        if ziel in ['#', '+']:
             break
         if ziel == '~':
             spielfeld[ny][nx] = '.'
@@ -238,6 +238,13 @@ def schiebe_plus(x, y, dx, dy):
         if ziel == '.':
             cx, cy = nx, ny
             continue
+        if ziel == 'S':
+            cx, cy = nx, ny
+            break
+        if ziel == '%':
+            urspruengliches_level[aktuelle_level][ny][nx] = '.'
+            spielfeld[ny][nx] = '.'
+            break
 
     spielfeld[cy][cx] = '+'
     return cx, cy
@@ -268,6 +275,11 @@ def bewege(dx, dy):
         ziel = spielfeld[ny][nx]
 
         if ziel == '#':
+            break
+
+        if ziel == '%':
+            urspruengliches_level[aktuelle_level][ny][nx] = '.'
+            spielfeld[ny][nx] = '.'
             break
 
         if ziel == '~':
@@ -327,9 +339,3 @@ while True:
     else:
         print("Ungültige Eingabe.")
         sleep(1)
-
-# lever
-# sticky block -> man bleibt drauf stehen
-# 1 time block -> verschwindet bei berührung
-# bewegliche -> jede bewegung bewegen sie sich
-# teleportation blocke
