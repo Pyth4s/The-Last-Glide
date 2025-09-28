@@ -54,7 +54,7 @@ def show_field():
     system('cls' if system.__name__ == 'posix' else 'clear')
     print(f"Level {current_level + 1} / {len(levels_base)}")
     print("Controls: w/a/s/d = move, r = reset, q = quit")
-    print("Legende: '.' = Air, '#' = Wall, '+' = Box, '~' = Lava, 'S' = Slime, '%' = One-Time, 'o'/'O' = Portal, 'X' = Ziel")
+    print("Legende: '.' = Air, '#' = Wall, '+' = Box, '~' = Lava, 'S' = Slime, '%' = One-Time, 'o'/'O' = Portal, 'q'/'Q' = Portal, 'p'/'P' = Portal, 'X' = Ziel")
     for y in range(height):
         line = ""
         for x in range(width):
@@ -75,7 +75,8 @@ def can_occupy(x, y):
     return True
 
 def teleport_destination_for(portal_char):
-    target_char = 'O' if portal_char == 'o' else 'o'
+    # Unterstützt jetzt: o/O, q/Q, p/P (all paarweise: lower<->upper)
+    target_char = portal_char.upper() if portal_char.islower() else portal_char.lower()
     for yy in range(height):
         for xx in range(width):
             if levels_base[current_level][yy][xx] == target_char:
@@ -110,7 +111,8 @@ def push_box(box_x, box_y, dx, dy):
             levels_base[current_level][ny][nx] = '.'
             field[ny][nx] = '.'
             break
-        if target in ['o', 'O']:
+        if target in ['o', 'O', 'q', 'Q', 'p', 'P']:
+            # Box trifft ein Portal: aktuell wird es wie ein Hindernis behandelt
             break
 
     field[cy][cx] = '+'
@@ -164,7 +166,8 @@ def move(dx, dy):
             player_pos = (nx, ny)
             return
 
-        if base_tile in ['o', 'O']:
+        # Unterstütze Teleport-Paare o/O, q/Q, p/P
+        if base_tile in ['o', 'O', 'q', 'Q', 'p', 'P']:
             dest = teleport_destination_for(base_tile)
             if dest:
                 tx, ty = dest
