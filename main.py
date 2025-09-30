@@ -19,11 +19,9 @@ height = len(field)
 width = len(field[0])
 portal_pairs = {'o': 'O', 'O': 'o', 'p': 'P', 'P': 'p', 'q': 'Q', 'Q': 'q'}
 portal_links = {}
-
-# Position von H und Ziel *
-h_start = None
-h_target = None
-h_current_is_start = True
+h_path = []
+h_index = 0
+h_forward = True
 
 def place_player(x, y):
     field[y][x] = '@'
@@ -38,9 +36,9 @@ def find_player():
 def show_field():
     system('cls' if system.__name__ == 'posix' else 'clear')
     print(f"Level {current_level + 1} / {len(levels)}")
-    print("Controls: w/a/s/d = move, r = reset, q = quit;\n"
+    print("Controls: w/a/s/d = move, r = reset, q = quit, Enter = H bewegen;\n"
           "'.' = Air, '#' = Wall, '+' = Box, '~' = Lava, 'S' = Slime Block, "
-          "'%' = One-Time-Block, 'o/O/p/P/q/Q' = Portale, 'H' = beweglicher Block\n")
+          "'%' = One-Time-Block, 'o/O/p/P/q/Q' = Portale, 'H' = beweglicher Block, '*' = H-Pfad\n")
     for line in field:
         print(''.join(line))
 
@@ -52,8 +50,10 @@ def push_box(x, y, dx, dy):
     if original_levels[current_level][cy][cx] == 'S':
         field[cy][cx] = 'S'
     else:
-        field[cy][cx] = '.'
-
+        if (cx, cy) in h_path:
+            field[cy][cx] = '*'
+        else:
+            field[cy][cx] = '.'
     while True:
         nx = cx + dx
         ny = cy + dy
@@ -84,17 +84,38 @@ def push_box(x, y, dx, dy):
     field[cy][cx] = '+'
     return cx, cy
 
+def load_h_path():
+    global h_path, h_index, h_forward
+    h_path = []
+    h_index = 0
+    h_forward = True
+    start = None
+    for y in range(height):
+        for x in range(width):
+            if field[y][x] == 'H':
+                start = (x, y)
+    if not start:
+        return
+    visited = set()
+    def dfs(x, y):
+        if (x, y) in visited:
+            return
+        visited.add((x, y))
+        h_path.append((x, y))
+        for dx, dy in [(1,0), (-1,0), (0,1), (0,-1)]:
+            nx, ny = x + dx, y + dy
+            if 0 <= nx < width and 0 <= ny < height:
+                if field[ny][nx] == '*' or field[ny][nx] == 'H':
+                    dfs(nx, ny)
+    dfs(*start)
+
 def load_level(level_number):
-    global field, height, width, current_level, portal_links, h_start, h_target, h_current_is_start
+    global field, height, width, current_level, portal_links
     current_level = level_number
     field = [list(row) for row in original_levels[current_level]]
     height = len(field)
     width = len(field[0])
     portal_links = {}
-    h_start = None
-    h_target = None
-    h_current_is_start = True
-
     portals = {}
     for y in range(height):
         for x in range(width):
@@ -106,87 +127,54 @@ def load_level(level_number):
                     x2, y2 = portals[pair_symbol]
                     portal_links[(x, y)] = (x2, y2)
                     portal_links[(x2, y2)] = (x, y)
-            if field[y][x] == 'H':
-                h_start = (x, y)
-            if field[y][x] == '*':
-                h_target = (x, y)
-                field[y][x] = '.'
+    load_h_path()
 
 def move_h_block():
-    global h_current_is_start, h_start, h_target
-    if not h_start or not h_target:
+    global h_index, h_forward
+    if not h_path:
         return
-
-    if h_current_is_start:
-        src = h_start
-        dst = h_target
+    hx, hy = h_path[h_index]
+    if (hx, hy) in h_path:
+        field[hy][hx] = '*'
     else:
-        src = h_target
-        dst = h_start
-
-    sx, sy = src
-    dx, dy = dst
-    target = field[dy][dx]
-
-    # Spieler treffen
+        field[hy][hx] = '.'
+    if h_forward:
+        h_index += 1
+        if h_index >= len(h_path):
+            h_index = len(h_path) - 2
+            h_forward = False
+    else:
+        h_index -= 1
+        if h_index < 0:
+            h_index = 1
+            h_forward = True
+    nx, ny = h_path[h_index]
+    target = field[ny][nx]
     if target == '@':
-        push_dx = dx - sx
-        push_dy = dy - sy
-        nx = dx + push_dx
-        ny = dy + push_dy
-        if 0 <= nx < width and 0 <= ny < height:
-            next_target = field[ny][nx]
-            if next_target in ['.', 'S']:
-                field[sy][sx] = '.' if original_levels[current_level][sy][sx] != 'S' else 'S'
-                field[dy][dx] = 'H'
-                field[ny][nx] = '@'
-                h_current_is_start = not h_current_is_start
-            elif next_target in portal_pairs:
-                dest = find_portal_target(nx, ny)
-                if dest:
-                    tx, ty = dest
-                    field[sy][sx] = '.' if original_levels[current_level][sy][sx] != 'S' else 'S'
-                    field[dy][dx] = 'H'
-                    field[ty][tx] = '@'
-                    h_current_is_start = not h_current_is_start
-        return
-
-    # Box treffen
+        dx = nx - hx
+        dy = ny - hy
+        px, py = nx + dx, ny + dy
+        if 0 <= px < width and 0 <= py < height and field[py][px] == '.':
+            field[py][px] = '@'
     if target == '+':
-        push_dx = dx - sx
-        push_dy = dy - sy
-        nx = dx + push_dx
-        ny = dy + push_dy
-        if 0 <= nx < width and 0 <= ny < height:
-            next_target = field[ny][nx]
-            if next_target in ['.', 'S']:
-                field[ny][nx] = '+'
-                field[dy][dx] = 'H'
-                field[sy][sx] = '.' if original_levels[current_level][sy][sx] != 'S' else 'S'
-                h_current_is_start = not h_current_is_start
-            elif next_target in portal_pairs:
-                dest = find_portal_target(nx, ny)
-                if dest:
-                    tx, ty = dest
-                    field[ty][tx] = '+'
-                    field[dy][dx] = 'H'
-                    field[sy][sx] = '.' if original_levels[current_level][sy][sx] != 'S' else 'S'
-                    h_current_is_start = not h_current_is_start
-        return
-
-    # normales Bewegen
-    if target in ['.', 'S']:
-        field[sy][sx] = '.' if original_levels[current_level][sy][sx] != 'S' else 'S'
-        field[dy][dx] = 'H'
-        h_current_is_start = not h_current_is_start
+        dx = nx - hx
+        dy = ny - hy
+        bx, by = nx + dx, ny + dy
+        if 0 <= bx < width and 0 <= by < height and field[by][bx] == '.':
+            field[by][bx] = '+'
+    field[ny][nx] = 'H'
 
 def move(dx, dy):
     global current_level, field, height, width
+    move_h_block()
     x, y = find_player()
     if original_levels[current_level][y][x] == 'S':
         field[y][x] = 'S'
     else:
-        field[y][x] = '.'
+        if (x, y) in h_path:
+            field[y][x] = '*'
+        else:
+            field[y][x] = '.'
     while True:
         nx = x + dx
         ny = y + dy
@@ -222,7 +210,6 @@ def move(dx, dy):
             return
         if target == 'S':
             place_player(nx, ny)
-            move_h_block()
             return
         if target in portal_pairs:
             dest = find_portal_target(nx, ny)
@@ -230,7 +217,6 @@ def move(dx, dy):
                 nx, ny = dest
         x, y = nx, ny
     place_player(x, y)
-    move_h_block()
 
 direction_map = {
     'w': (0, -1),
@@ -238,6 +224,8 @@ direction_map = {
     'a': (-1, 0),
     'd': (1, 0)
 }
+
+load_level(current_level)
 
 while True:
     show_field()
@@ -249,6 +237,8 @@ while True:
         load_level(current_level)
         print("Level has been reset.")
         sleep(1)
+    elif user_input == '':
+        move_h_block()
     elif user_input in direction_map:
         dx, dy = direction_map[user_input]
         move(dx, dy)
