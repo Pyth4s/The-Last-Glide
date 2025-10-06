@@ -18,7 +18,7 @@ def main_menu(player_name: str):
         print("L) Logout")
         print("Q) Quit")
         print("")
-        choice = input("Choose mode (S/R/A/Q): ").strip().lower()
+        choice = input("Choose mode (S/R/A/L/Q): ").strip().lower()
 
         if choice.startswith('s'):
             game.start_game(player_name)
